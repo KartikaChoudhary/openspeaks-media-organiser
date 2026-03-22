@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenSpeaks Media Organiser</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: sans-serif;
+      background: #f5f5f0;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a1a;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 { font-size: 18px; font-weight: 500; }
+    header p { font-size: 13px; opacity: 0.6; }
+
+    .landing {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      gap: 16px;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .landing h2 { font-size: 22px; font-weight: 500; }
+    .landing p { font-size: 15px; color: #666; max-width: 400px; line-height: 1.6; }
+
+    button.primary {
+      background: #1a1a1a;
+      color: #fff;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button.primary:hover { background: #333; }
+
+    .file-list {
+      display: none;
+      padding: 24px;
+      gap: 12px;
+      flex-direction: column;
+    }
+
+    .file-list.active { display: flex; }
+
+    .file-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border: 1px solid #e5e5e5;
+    }
+
+    .file-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .file-icon.audio { background: #e8f5e9; }
+    .file-icon.video { background: #e3f2fd; }
+    .file-icon.image { background: #fce4ec; }
+
+    .file-info { flex: 1; }
+    .file-name { font-size: 14px; font-weight: 500; }
+    .file-meta { font-size: 12px; color: #888; margin-top: 2px; }
+
+    .toolbar {
+      display: none;
+      padding: 12px 24px;
+      background: #fff;
+      border-bottom: 1px solid #e5e5e5;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .toolbar.active { display: flex; }
+    .toolbar span { font-size: 13px; color: #666; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>OpenSpeaks Media Organiser</h1>
+    <p>Tag, preview, and rename fieldwork recordings</p>
+  </div>
+</header>
+
+<div class="toolbar" id="toolbar">
+  <span id="file-count">0 files loaded</span>
+  <button class="primary" onclick="openFolder()" style="padding: 8px 16px; font-size: 13px;">
+    Open another folder
+  </button>
+</div>
+
+<div class="landing" id="landing">
+  <h2>Open a folder to get started</h2>
+  <p>Select the folder containing your fieldwork audio, video, and image files</p>
+  <button class="primary" onclick="openFolder()">Open Folder</button>
+</div>
+
+<div class="file-list" id="fileList"></div>
+
+<script>
+  const SUPPORTED = {
+    audio: ['mp3','wav','ogg','m4a','flac','aac'],
+    video: ['mp4','mov','avi','mkv','webm'],
+    image: ['jpg','jpeg','png','gif','webp','tiff']
+  }
+
+  const ICONS = { audio: '🎵', video: '🎬', image: '🖼️' }
+
+  let files = []
+
+  function getType(filename) {
+    const ext = filename.split('.').pop().toLowerCase()
+    for (const [type, exts] of Object.entries(SUPPORTED)) {
+      if (exts.includes(ext)) return type
+    }
+    return null
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
+  async function openFolder() {
+    try {
+      const dirHandle = await window.showDirectoryPicker()
+      files = []
+
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind !== 'file') continue
+        const type = getType(entry.name)
+        if (!type) continue
+        const file = await entry.getFile()
+        files.push({ name: entry.name, type, size: file.size, file, handle: entry })
+      }
+
+      renderFiles()
+    } catch (e) {
+      if (e.name !== 'AbortError') alert('Something went wrong: ' + e.message)
+    }
+  }
+
+  function renderFiles() {
+    const list = document.getElementById('fileList')
+    const landing = document.getElementById('landing')
+    const toolbar = document.getElementById('toolbar')
+    const count = document.getElementById('file-count')
+
+    if (files.length === 0) {
+      alert('No supported media files found in this folder')
+      return
+    }
+
+    landing.style.display = 'none'
+    list.classList.add('active')
+    toolbar.classList.add('active')
+    count.textContent = `${files.length} file${files.length > 1 ? 's' : ''} loaded`
+
+    list.innerHTML = files.map((f, i) => `
+      <div class="file-card" id="card-${i}">
+        <div class="file-icon ${f.type}">${ICONS[f.type]}</div>
+        <div class="file-info">
+          <div class="file-name">${f.name}</div>
+          <div class="file-meta">${f.type} · ${formatSize(f.size)}</div>
+        </div>
+      </div>
+    `).join('')
+  }
+</script>
+
+</body>
+</html>
