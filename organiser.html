@@ -6,7 +6,7 @@
   <title>OpenSpeaks Media Organiser</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
+
     body {
       font-family: sans-serif;
       background: #f5f5f0;
@@ -65,11 +65,26 @@
       background: #fff;
       border-radius: 10px;
       padding: 16px;
+      border: 1px solid #e5e5e5;
+    }
+
+    .file-header {
       display: flex;
       align-items: center;
       gap: 16px;
-      border: 1px solid #e5e5e5;
+      cursor: pointer;
     }
+
+    .file-header:hover { opacity: 0.8; }
+
+    .expand-icon {
+      margin-left: auto;
+      font-size: 12px;
+      color: #888;
+      transition: transform 0.2s;
+    }
+
+    .expand-icon.open { transform: rotate(180deg); }
 
     .file-icon {
       width: 40px;
@@ -90,6 +105,75 @@
     .file-name { font-size: 14px; font-weight: 500; }
     .file-meta { font-size: 12px; color: #888; margin-top: 2px; }
 
+    .file-expanded {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .preview-area {
+      margin-bottom: 16px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f5f5f0;
+    }
+
+    .preview-area audio,
+    .preview-area video {
+      width: 100%;
+      display: block;
+    }
+
+    .preview-area img {
+      max-width: 100%;
+      max-height: 300px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .meta-field { display: flex; flex-direction: column; gap: 4px; }
+    .meta-field.full-width { grid-column: 1 / -1; }
+
+    .meta-field label {
+      font-size: 12px;
+      color: #888;
+      font-weight: 500;
+    }
+
+    .meta-field input,
+    .meta-field select,
+    .meta-field textarea {
+      border: 1px solid #e5e5e5;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: sans-serif;
+      background: #fafafa;
+      outline: none;
+    }
+
+    .meta-field input:focus,
+    .meta-field select:focus,
+    .meta-field textarea:focus {
+      border-color: #1a1a1a;
+      background: #fff;
+    }
+
+    .filename-preview {
+      background: #f0f0eb;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-family: monospace;
+      color: #444;
+    }
+
     .toolbar {
       display: none;
       padding: 12px 24px;
@@ -101,6 +185,26 @@
 
     .toolbar.active { display: flex; }
     .toolbar span { font-size: 13px; color: #666; }
+
+    .btn-row {
+      display: none;
+      padding: 16px 24px;
+      gap: 12px;
+    }
+
+    .btn-row.active { display: flex; }
+
+    button.secondary {
+      background: #fff;
+      color: #1a1a1a;
+      border: 1px solid #e5e5e5;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button.secondary:hover { border-color: #1a1a1a; }
   </style>
 </head>
 <body>
@@ -114,7 +218,8 @@
 
 <div class="toolbar" id="toolbar">
   <span id="file-count">0 files loaded</span>
-  <button class="primary" onclick="openFolder()" style="padding: 8px 16px; font-size: 13px;">
+  <button class="primary" onclick="openFolder()" 
+    style="padding: 8px 16px; font-size: 13px; margin-left: auto;">
     Open another folder
   </button>
 </div>
@@ -123,6 +228,11 @@
   <h2>Open a folder to get started</h2>
   <p>Select the folder containing your fieldwork audio, video, and image files</p>
   <button class="primary" onclick="openFolder()">Open Folder</button>
+</div>
+
+<div class="btn-row" id="btnRow">
+  <button class="primary" onclick="batchRename()">Rename All Files</button>
+  <button class="secondary" onclick="exportCSV()">Export CSV Log</button>
 </div>
 
 <div class="file-list" id="fileList"></div>
@@ -137,6 +247,7 @@
   const ICONS = { audio: '🎵', video: '🎬', image: '🖼️' }
 
   let files = []
+  let dirHandle = null
 
   function getType(filename) {
     const ext = filename.split('.').pop().toLowerCase()
@@ -154,7 +265,7 @@
 
   async function openFolder() {
     try {
-      const dirHandle = await window.showDirectoryPicker()
+      dirHandle = await window.showDirectoryPicker()
       files = []
 
       for await (const entry of dirHandle.values()) {
@@ -162,7 +273,18 @@
         const type = getType(entry.name)
         if (!type) continue
         const file = await entry.getFile()
-        files.push({ name: entry.name, type, size: file.size, file, handle: entry })
+        files.push({
+          name: entry.name,
+          type,
+          size: file.size,
+          file,
+          handle: entry,
+          language: '',
+          category: '',
+          speaker: '',
+          subject: '',
+          notes: ''
+        })
       }
 
       renderFiles()
@@ -175,6 +297,7 @@
     const list = document.getElementById('fileList')
     const landing = document.getElementById('landing')
     const toolbar = document.getElementById('toolbar')
+    const btnRow = document.getElementById('btnRow')
     const count = document.getElementById('file-count')
 
     if (files.length === 0) {
@@ -185,17 +308,185 @@
     landing.style.display = 'none'
     list.classList.add('active')
     toolbar.classList.add('active')
+    btnRow.classList.add('active')
     count.textContent = `${files.length} file${files.length > 1 ? 's' : ''} loaded`
 
     list.innerHTML = files.map((f, i) => `
       <div class="file-card" id="card-${i}">
-        <div class="file-icon ${f.type}">${ICONS[f.type]}</div>
-        <div class="file-info">
-          <div class="file-name">${f.name}</div>
-          <div class="file-meta">${f.type} · ${formatSize(f.size)}</div>
+        <div class="file-header" onclick="toggleCard(${i})">
+          <div class="file-icon ${f.type}">${ICONS[f.type]}</div>
+          <div class="file-info">
+            <div class="file-name">${f.name}</div>
+            <div class="file-meta">${f.type} · ${formatSize(f.size)}</div>
+          </div>
+          <div class="expand-icon" id="expand-${i}">▼</div>
+        </div>
+        <div class="file-expanded" id="expanded-${i}" style="display:none">
+          <div class="preview-area" id="preview-${i}"></div>
+          <div class="metadata-grid">
+            <div class="meta-field">
+              <label>Language</label>
+              <input type="text" placeholder="e.g. gondi, kurukh"
+                oninput="updateMeta(${i}, 'language', this.value)">
+            </div>
+            <div class="meta-field">
+              <label>Category</label>
+              <select onchange="updateMeta(${i}, 'category', this.value)">
+                <option value="">Select category</option>
+                <option value="a-roll">A-roll (main footage)</option>
+                <option value="b-roll">B-roll (supporting)</option>
+                <option value="interview">Interview</option>
+                <option value="ambient">Ambient sound</option>
+                <option value="photo">Photo</option>
+              </select>
+            </div>
+            <div class="meta-field">
+              <label>Subject</label>
+              <input type="text" placeholder="e.g. harvest, festival"
+                oninput="updateMeta(${i}, 'subject', this.value)">
+            </div>
+            <div class="meta-field">
+              <label>Speaker name</label>
+              <input type="text" placeholder="e.g. ravi, meena"
+                oninput="updateMeta(${i}, 'speaker', this.value)">
+            </div>
+            <div class="meta-field full-width">
+              <label>Notes</label>
+              <textarea placeholder="Any additional notes..." rows="2"
+                oninput="updateMeta(${i}, 'notes', this.value)"></textarea>
+            </div>
+            <div class="meta-field full-width">
+              <label>New filename preview</label>
+              <div class="filename-preview" id="fnpreview-${i}">
+                fill in the fields above to see preview
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     `).join('')
+  }
+
+  function toggleCard(i) {
+    const expanded = document.getElementById(`expanded-${i}`)
+    const icon = document.getElementById(`expand-${i}`)
+    const isOpen = expanded.style.display !== 'none'
+
+    if (isOpen) {
+      expanded.style.display = 'none'
+      icon.classList.remove('open')
+    } else {
+      expanded.style.display = 'block'
+      icon.classList.add('open')
+      loadPreview(i)
+    }
+  }
+
+  function loadPreview(i) {
+    const f = files[i]
+    const area = document.getElementById(`preview-${i}`)
+    if (area.innerHTML !== '') return
+
+    const url = URL.createObjectURL(f.file)
+
+    if (f.type === 'audio') {
+      area.innerHTML = `<audio controls src="${url}"></audio>`
+    } else if (f.type === 'video') {
+      area.innerHTML = `<video controls src="${url}"></video>`
+    } else if (f.type === 'image') {
+      area.innerHTML = `<img src="${url}" alt="${f.name}">`
+    }
+  }
+
+  function updateMeta(i, field, value) {
+    files[i][field] = value
+    updateFilenamePreview(i)
+  }
+
+  function updateFilenamePreview(i) {
+    const f = files[i]
+    const ext = f.name.split('.').pop().toLowerCase()
+    const lang = f.language || 'language'
+    const cat = f.category || 'type'
+    const speaker = f.speaker || 'name'
+    const subject = f.subject || 'subject'
+    const seq = String(i + 1).padStart(3, '0')
+
+    const newName = `${lang}-${cat}-${speaker}-${subject}_${seq}.${ext}`
+    document.getElementById(`fnpreview-${i}`).textContent = newName
+  }
+
+  async function batchRename() {
+    if (!dirHandle) return alert('No folder open')
+
+    const confirmed = confirm(`Rename ${files.length} files? This cannot be undone.`)
+    if (!confirmed) return
+
+    let renamed = 0
+    let skipped = 0
+
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i]
+      const ext = f.name.split('.').pop().toLowerCase()
+      const lang = f.language || 'unknown'
+      const cat = f.category || 'uncategorised'
+      const speaker = f.speaker || 'unknown'
+      const subject = f.subject || 'unknown'
+      const seq = String(i + 1).padStart(3, '0')
+      const newName = `${lang}-${cat}-${speaker}-${subject}_${seq}.${ext}`
+
+      if (newName === f.name) { skipped++; continue }
+
+      try {
+        const oldFile = await f.handle.getFile()
+        const contents = await oldFile.arrayBuffer()
+        const newHandle = await dirHandle.getFileHandle(newName, { create: true })
+        const writable = await newHandle.createWritable()
+        await writable.write(contents)
+        await writable.close()
+        await dirHandle.removeEntry(f.name)
+        files[i].name = newName
+        files[i].handle = newHandle
+        document.querySelector(`#card-${i} .file-name`).textContent = newName
+        renamed++
+      } catch (e) {
+        console.error(`Failed to rename ${f.name}:`, e)
+        skipped++
+      }
+    }
+
+    alert(`Done! ${renamed} files renamed, ${skipped} skipped.`)
+  }
+
+  function exportCSV() {
+    if (files.length === 0) return alert('No files loaded')
+
+    const rows = [
+      ['sequence', 'original_name', 'new_name', 'type', 'language', 
+       'category', 'speaker', 'subject', 'notes']
+    ]
+
+    files.forEach((f, i) => {
+      const ext = f.name.split('.').pop().toLowerCase()
+      const lang = f.language || 'unknown'
+      const cat = f.category || 'uncategorised'
+      const speaker = f.speaker || 'unknown'
+      const subject = f.subject || 'unknown'
+      const seq = String(i + 1).padStart(3, '0')
+      const newName = `${lang}-${cat}-${speaker}-${subject}_${seq}.${ext}`
+
+      rows.push([seq, f.name, newName, f.type, 
+                 f.language, f.category, f.speaker, f.subject, f.notes])
+    })
+
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'openspeaks-organiser-log.csv'
+    a.click()
+    URL.revokeObjectURL(url)
   }
 </script>
 
