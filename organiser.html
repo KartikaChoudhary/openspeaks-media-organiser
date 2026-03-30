@@ -257,6 +257,14 @@
   cursor: pointer;
   flex-shrink: 0;
 }
+
+.pattern-builder {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 4px;
+}
   </style>
 </head>
 <body>
@@ -293,6 +301,21 @@
       transition: width 0.3s ease; border-radius:20px;"></div>
   </div>
   <div id="progressText" style="font-size:12px; color:#888; margin-top:6px;"></div>
+</div>
+<div class="pattern-builder">
+  <label style="font-size:12px; color:#888; font-weight:500;">Filename pattern</label>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+    <select id="patternSelect" style="border:1px solid #e5e5e5; border-radius:6px; padding:6px 10px; font-size:13px; outline:none;">
+      <option value="{language}">Language</option>
+      <option value="{category}">Category</option>
+      <option value="{speaker}">Speaker</option>
+      <option value="{subject}">Subject</option>
+      <option value="{sequence}">Sequence</option>
+    </select>
+    <button class="secondary" onclick="addBlock()" style="padding:6px 12px; font-size:13px;">+ Add block</button>
+    <button class="secondary" onclick="resetPattern()" style="padding:6px 12px; font-size:13px;">Reset</button>
+  </div>
+  <div id="patternPreview" style="margin-top:8px; font-family:monospace; font-size:13px; background:#f0f0eb; padding:8px 12px; border-radius:6px; color:#444;"></div>
 </div>
   <div class="filter-bar">
     <button class="filter-btn active" onclick="filterFiles('all', this)">All</button>
@@ -384,6 +407,7 @@
     toolbar.classList.add('active')
     btnRow.classList.add('active')
     count.textContent = `${files.length} file${files.length > 1 ? 's' : ''} loaded`
+    updatePatternPreview()
 
     list.innerHTML = files.map((f, i) => `
       <div class="file-card" id="card-${i}">
@@ -483,18 +507,11 @@
     updateFilenamePreview(i)
   }
 
-  function updateFilenamePreview(i) {
-    const f = files[i]
-    const ext = f.name.split('.').pop().toLowerCase()
-    const lang = f.language || 'language'
-    const cat = f.category || 'type'
-    const speaker = f.speaker || 'name'
-    const subject = f.subject || 'subject'
-    const seq = String(i + 1).padStart(3, '0')
-
-    const newName = `${lang}-${cat}-${speaker}-${subject}_${seq}.${ext}`
-    document.getElementById(`fnpreview-${i}`).textContent = newName
-  }
+ function updateFilenamePreview(i) {
+  const f = files[i]
+  const newName = buildFilename(f, i)
+  document.getElementById(`fnpreview-${i}`).textContent = newName
+}
 
   async function batchRename() {
   if (!dirHandle) return alert('No folder open')
@@ -516,13 +533,7 @@
     for (let i = 0; i < files.length; i++) {
   const f = files[i]
   if (f.selected === false) { skipped++; continue }
-      const ext = f.name.split('.').pop().toLowerCase()
-      const lang = f.language || 'unknown'
-      const cat = f.category || 'uncategorised'
-      const speaker = f.speaker || 'unknown'
-      const subject = f.subject || 'unknown'
-      const seq = String(i + 1).padStart(3, '0')
-      const newName = `${lang}-${cat}-${speaker}-${subject}_${seq}.${ext}`
+     const newName = buildFilename(f, i)
 
       if (newName === f.name) { skipped++; continue }
 
@@ -560,14 +571,9 @@ setTimeout(() => { progressContainer.style.display = 'none' }, 3000)
     ]
 
     files.forEach((f, i) => {
-      const ext = f.name.split('.').pop().toLowerCase()
-      const lang = f.language || 'unknown'
-      const cat = f.category || 'uncategorised'
-      const speaker = f.speaker || 'unknown'
-      const subject = f.subject || 'unknown'
-      const seq = String(i + 1).padStart(3, '0')
-      const newName = `${lang}-${cat}-${speaker}-${subject}_${seq}.${ext}`
+      const newName = buildFilename(f, i)
 
+      const seq = String(i + 1).padStart(3, '0')
       rows.push([seq, f.name, newName, f.type, 
                  f.language, f.category, f.speaker, f.subject, f.notes])
     })
@@ -623,6 +629,42 @@ function toggleSelectAll(checked) {
     const cb = document.getElementById(`check-${i}`)
     if (cb) cb.checked = checked
   })
+}
+
+let patternBlocks = ['{language}', '{category}', '{speaker}', '{subject}', '{sequence}']
+
+function addBlock() {
+  const select = document.getElementById('patternSelect')
+  const val = select.value
+  if (!patternBlocks.includes(val)) {
+    patternBlocks.push(val)
+  }
+  updatePatternPreview()
+}
+
+function resetPattern() {
+  patternBlocks = ['{language}', '{category}', '{speaker}', '{subject}', '{sequence}']
+  updatePatternPreview()
+}
+
+function updatePatternPreview() {
+  const preview = document.getElementById('patternPreview')
+  if (!preview) return
+  const pattern = patternBlocks.join('-') + '.{ext}'
+  preview.textContent = 'Pattern: ' + pattern
+}
+
+function buildFilename(f, i) {
+  const ext = f.name.split('.').pop().toLowerCase()
+  const values = {
+    '{language}': f.language || 'unknown',
+    '{category}': f.category || 'uncategorised',
+    '{speaker}': f.speaker || 'unknown',
+    '{subject}': f.subject || 'unknown',
+    '{sequence}': String(i + 1).padStart(3, '0')
+  }
+  const name = patternBlocks.map(b => values[b] || b).join('-')
+  return name + '.' + ext
 }
 </script>
 
