@@ -205,6 +205,51 @@
     }
 
     button.secondary:hover { border-color: #1a1a1a; }
+    .btn-row {
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.filter-btn:hover { border-color: #1a1a1a; }
+
+.filter-btn.active {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+#searchInput {
+  border: 1px solid #e5e5e5;
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  outline: none;
+  width: 200px;
+}
+
+#searchInput:focus { border-color: #1a1a1a; }
+
+.action-btns {
+  display: flex;
+  gap: 12px;
+}
   </style>
 </head>
 <body>
@@ -231,8 +276,25 @@
 </div>
 
 <div class="btn-row" id="btnRow">
-  <button class="primary" onclick="batchRename()">Rename All Files</button>
-  <button class="secondary" onclick="exportCSV()">Export CSV Log</button>
+  <div id="progressContainer" style="display:none; padding: 12px 24px;">
+  <div style="background:#e5e5e5; border-radius:20px; height:8px; overflow:hidden;">
+    <div id="progressBar" style="background:#1a1a1a; height:100%; width:0%; 
+      transition: width 0.3s ease; border-radius:20px;"></div>
+  </div>
+  <div id="progressText" style="font-size:12px; color:#888; margin-top:6px;"></div>
+</div>
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterFiles('all', this)">All</button>
+    <button class="filter-btn" onclick="filterFiles('audio', this)">Audio</button>
+    <button class="filter-btn" onclick="filterFiles('video', this)">Video</button>
+    <button class="filter-btn" onclick="filterFiles('image', this)">Image</button>
+    <input type="text" id="searchInput" placeholder="Search filename..." 
+      oninput="searchFiles(this.value)">
+  </div>
+  <div class="action-btns">
+    <button class="primary" onclick="batchRename()">Rename All Files</button>
+    <button class="secondary" onclick="exportCSV()">Export CSV Log</button>
+  </div>
 </div>
 
 <div class="file-list" id="fileList"></div>
@@ -417,10 +479,18 @@
   }
 
   async function batchRename() {
-    if (!dirHandle) return alert('No folder open')
+  if (!dirHandle) return alert('No folder open')
 
-    const confirmed = confirm(`Rename ${files.length} files? This cannot be undone.`)
-    if (!confirmed) return
+  const confirmed = confirm(`Rename ${files.length} files? This cannot be undone.`)
+  if (!confirmed) return
+
+  // show progress bar
+  const progressContainer = document.getElementById('progressContainer')
+  const progressBar = document.getElementById('progressBar')
+  const progressText = document.getElementById('progressText')
+  progressContainer.style.display = 'block'
+  progressBar.style.width = '0%'
+  progressText.textContent = 'Starting...'
 
     let renamed = 0
     let skipped = 0
@@ -448,14 +518,18 @@
         files[i].name = newName
         files[i].handle = newHandle
         document.querySelector(`#card-${i} .file-name`).textContent = newName
-        renamed++
+        const percent = Math.round(((renamed + skipped) / files.length) * 100)
+progressBar.style.width = percent + '%'
+progressText.textContent = `Renaming... ${renamed + skipped} of ${files.length}`
       } catch (e) {
         console.error(`Failed to rename ${f.name}:`, e)
         skipped++
       }
     }
 
-    alert(`Done! ${renamed} files renamed, ${skipped} skipped.`)
+    progressBar.style.width = '100%'
+progressText.textContent = `Done! ${renamed} renamed, ${skipped} skipped.`
+setTimeout(() => { progressContainer.style.display = 'none' }, 3000)
   }
 
   function exportCSV() {
@@ -488,7 +562,40 @@
     a.click()
     URL.revokeObjectURL(url)
   }
+
+  let currentFilter = 'all'
+let currentSearch = ''
+
+function filterFiles(type, btn) {
+  currentFilter = type
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  applyFilters()
+}
+
+function searchFiles(query) {
+  currentSearch = query.toLowerCase()
+  applyFilters()
+}
+
+  function applyFilters() {
+  files.forEach((f, i) => {
+    const card = document.getElementById(`card-${i}`)
+    if (!card) return
+    const matchesType = currentFilter === 'all' || f.type === currentFilter
+    const matchesSearch = f.name.toLowerCase().includes(currentSearch)
+    if (matchesType && matchesSearch) {
+      card.style.display = 'block'
+      card.style.visibility = 'visible'
+    } else {
+      card.style.display = 'none'
+      card.style.visibility = 'hidden'
+    }
+  })
+}
 </script>
 
 </body>
 </html>
+ 
+      
