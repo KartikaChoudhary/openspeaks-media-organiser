@@ -40,3 +40,6 @@ Example: `gondi-audio-ravi-harvest_001.mp3`
 ## License
 
 MIT
+
+## Live Demo
+https://kartikachoudhary.github.io/openspeaks-media-organiser/organiser.html
