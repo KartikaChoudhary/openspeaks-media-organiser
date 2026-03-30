@@ -42,4 +42,4 @@ Example: `gondi-audio-ravi-harvest_001.mp3`
 MIT
 
 ## Live Demo
-https://kartikachoudhary.github.io/openspeaks-media-organiser/organiser.html?v=2
+https://kartikachoudhary.github.io/openspeaks-media-organiser/organiser.html?v=3
