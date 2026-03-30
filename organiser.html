@@ -250,6 +250,13 @@
   display: flex;
   gap: 12px;
 }
+
+.file-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
   </style>
 </head>
 <body>
@@ -263,6 +270,10 @@
 
 <div class="toolbar" id="toolbar">
   <span id="file-count">0 files loaded</span>
+  <label style="font-size:13px; color:#666; display:flex; align-items:center; gap:6px; cursor:pointer;">
+    <input type="checkbox" id="selectAll" checked onchange="toggleSelectAll(this.checked)">
+    Select all
+  </label>
   <button class="primary" onclick="openFolder()" 
     style="padding: 8px 16px; font-size: 13px; margin-left: auto;">
     Open another folder
@@ -335,7 +346,7 @@
         const type = getType(entry.name)
         if (!type) continue
         const file = await entry.getFile()
-        files.push({
+       files.push({
           name: entry.name,
           type,
           size: file.size,
@@ -345,7 +356,8 @@
           category: '',
           speaker: '',
           subject: '',
-          notes: ''
+          notes: '',
+          selected: true
         })
       }
 
@@ -375,13 +387,19 @@
 
     list.innerHTML = files.map((f, i) => `
       <div class="file-card" id="card-${i}">
-        <div class="file-header" onclick="toggleCard(${i})">
-          <div class="file-icon ${f.type}">${ICONS[f.type]}</div>
-          <div class="file-info">
-            <div class="file-name">${f.name}</div>
-            <div class="file-meta">${f.type} · ${formatSize(f.size)}</div>
+        <div class="file-header">
+          <input type="checkbox" class="file-checkbox" id="check-${i}" 
+            checked onclick="event.stopPropagation()"
+            onchange="toggleSelect(${i}, this.checked)">
+          <div class="file-header-click" onclick="toggleCard(${i})" 
+            style="display:flex; align-items:center; gap:16px; flex:1; cursor:pointer;">
+            <div class="file-icon ${f.type}">${ICONS[f.type]}</div>
+            <div class="file-info">
+              <div class="file-name">${f.name}</div>
+              <div class="file-meta">${f.type} · ${formatSize(f.size)}</div>
+            </div>
+            <div class="expand-icon" id="expand-${i}">▼</div>
           </div>
-          <div class="expand-icon" id="expand-${i}">▼</div>
         </div>
         <div class="file-expanded" id="expanded-${i}" style="display:none">
           <div class="preview-area" id="preview-${i}"></div>
@@ -496,7 +514,8 @@
     let skipped = 0
 
     for (let i = 0; i < files.length; i++) {
-      const f = files[i]
+  const f = files[i]
+  if (f.selected === false) { skipped++; continue }
       const ext = f.name.split('.').pop().toLowerCase()
       const lang = f.language || 'unknown'
       const cat = f.category || 'uncategorised'
@@ -593,9 +612,20 @@ function searchFiles(query) {
     }
   })
 }
+
+  function toggleSelect(i, checked) {
+  files[i].selected = checked
+}
+
+function toggleSelectAll(checked) {
+  files.forEach((f, i) => {
+    f.selected = checked
+    const cb = document.getElementById(`check-${i}`)
+    if (cb) cb.checked = checked
+  })
+}
 </script>
 
 </body>
 </html>
  
-      
