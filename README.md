@@ -5,7 +5,7 @@ Field archivists come back with 500 randomly named audio files. This tool fixes 
 ## Screenshots
 ![Landing page](Screenshot%202026-03-31%20002611.png)
 
-![Tool in action](Screenshot%202026-03-31%20002718.png)  
+![Pattern builder](Screenshot%202026-03-31%20010936.png)
 
 ## What is this?
 
