@@ -3,10 +3,10 @@
 Field archivists come back with 500 randomly named audio files. This tool fixes that.
 
 ## Screenshots
+![Landing page](Screenshot%202026-03-31%20002611.png)
 
-![Landing page](Screenshot_2026-03-31_002611.png)
+![Tool in action](Screenshot%202026-03-31%20002718.png)  
 
-![Tool in action](Screenshot_2026-03-31_002718.png)
 ## What is this?
 
 When people go into the field to document endangered and tribal languages, 
