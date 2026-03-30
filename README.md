@@ -2,6 +2,12 @@
 
 Field archivists come back with 500 randomly named audio files. This tool fixes that.
 
+## Screenshots
+
+![Landing page](Screenshot_2026-03-31_002611.png)
+
+![Tool in action](Screenshot_2026-03-31_002718.png)
+
 ## What is this?
 
 When people go into the field to document endangered and tribal languages, 
@@ -37,9 +43,11 @@ Files get renamed using this structure:
 
 Example: `gondi-audio-ravi-harvest_001.mp3`
 
+## Live Demo
+https://kartikachoudhary.github.io/openspeaks-media-organiser/organiser.html?v=3
+
 ## License
 
 MIT
 
-## Live Demo
-https://kartikachoudhary.github.io/openspeaks-media-organiser/organiser.html?v=3
+
