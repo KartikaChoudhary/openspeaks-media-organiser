@@ -636,14 +636,11 @@ let patternBlocks = ['{language}', '{category}', '{speaker}', '{subject}', '{seq
 function addBlock() {
   const select = document.getElementById('patternSelect')
   const val = select.value
-  if (!patternBlocks.includes(val)) {
-    patternBlocks.push(val)
-  }
+  patternBlocks.push(val)
   updatePatternPreview()
 }
-
 function resetPattern() {
-  patternBlocks = ['{language}', '{category}', '{speaker}', '{subject}', '{sequence}']
+  patternBlocks = []
   updatePatternPreview()
 }
 
